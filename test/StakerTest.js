@@ -122,7 +122,7 @@ describe("MembershipStaker", () => {
         await expect(() => staker.harvest(alice.address)).to.changeEtherBalance(alice, ethers.utils.parseEther("1.0"));
     });
 
-    it('should forward Unclaimed reward', async () => {
+    it('should forward unclaimed reward to the next rewardpool', async () => {
         await owner.sendTransaction({
             to: staker.address,
             value: ethers.utils.parseEther("3.0"), // Sends exactly 3.0 ether
@@ -160,6 +160,36 @@ describe("MembershipStaker", () => {
         expect(await ethers.provider.getBalance(staker.completedPool())).to.eq(ethers.utils.parseEther("3.0"));
 
         await expect(() => staker.harvest(alice.address)).to.changeEtherBalance(alice, ethers.utils.parseEther("2.0"));
+    });
+
+    it('should add to the next pool when staking', async () => {
+        await owner.sendTransaction({
+            to: staker.address,
+            value: ethers.utils.parseEther("2.0"), // Sends exactly 3.0 ether
+          });
+
+        await memberships.connect(alice).setApprovalForAll(staker.address, true);
+        await staker.connect(alice).stake(1);
+
+        await staker.connect(owner).endInitPeriod();
+
+        await ethers.provider.send("evm_increaseTime", [2592001]);
+        await ethers.provider.send("evm_mine"); 
+        await staker.updatePool();
+
+        await memberships.connect(bob).setApprovalForAll(staker.address, true);
+        await staker.connect(bob).stake(1);
+        await expect(staker.harvest(bob.address)).to.revertedWith('PaymentSplitter: account has no shares');
+
+        await ethers.provider.send("evm_increaseTime", [2592001]);
+        await ethers.provider.send("evm_mine"); 
+        await staker.updatePool();
+        await expect(staker.harvest(bob.address)).to.revertedWith('PaymentSplitter: account has no shares');
+
+        await ethers.provider.send("evm_increaseTime", [2592001]);
+        await ethers.provider.send("evm_mine"); 
+        await staker.updatePool();
+        await expect(() => staker.harvest(bob.address)).to.changeEtherBalance(bob, ethers.utils.parseEther("1.0"));
     });
 
     it('should update report the correct number staked', async() => {
