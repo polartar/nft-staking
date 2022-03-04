@@ -130,20 +130,17 @@ UUPSUpgradeable {
                 if(address(completedPool) != address(0)){
                     completedPool.forwardUnclaimed(newPool);
                 }
-                if(address(this).balance > 0){
-                    newPool.addReward{value : address(this).balance}();
-                }
                 completedPool = curPool;
                 curPool = newPool;
+            }
+            if(address(this).balance > 0){
+                curPool.addReward{value : address(this).balance}();
             }
         }
     }
 
     receive() external payable virtual{
         updatePool();
-        if(address(curPool) != address(0)){
-            curPool.addReward{value: msg.value}();
-        }   
     }
 
     function currentPoolId() public view returns(uint256){

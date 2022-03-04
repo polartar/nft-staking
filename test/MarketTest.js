@@ -79,10 +79,13 @@ describe("Marketplace", async() => {
         await nftWithRoyalties.deployed();
         await market.connect(staff).registerRoyalty(nftWithRoyalties.address, ipHolder.address, 500);
         await nftWithRoyalties.safeMint(alice.address); //0 alice
-
-        membershipStaker = await stakingFactory.deploy();
+        
+        membershipStaker = await upgrades.deployProxy(stakingFactory, [memberships.address], {
+            kind : "uups"
+        });
+        
         await membershipStaker.deployed();
-        await membershipStaker.initialize(memberships.address);
+
         await market.connect(admin).setMembershipStaker(membershipStaker.address);
     });
 
@@ -223,7 +226,8 @@ describe("Marketplace", async() => {
 
     it('should make purchase after epoch closed', async() => {
         await nftContract.connect(alice).setApprovalForAll(market.address, true);
-        await membershipStaker.connect(admin).endInitPeriod();
+        await membershipStaker.connect(deployer).endInitPeriod();
+
         await memberships.connect(alice).setApprovalForAll(membershipStaker.address, true);
         await membershipStaker.connect(alice).stake(1);
 
